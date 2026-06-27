@@ -13,7 +13,6 @@
 
 **Инструменты:**
 - TestIT (check lists, test cases)
-- TestRail (test cases)
 - Jira (bug report)
 - Postman (тестирование api)
 - Swagger (документация api)
@@ -22,9 +21,9 @@
 
 **<h2>Файлы в репозитории</h2>**
 
-1. requirements.yml - требования к сайту
-2. test-cases.yml - тест-кейсы
-3. testing-report.yml - отчет о тестировании по тест-кейсам из пункта 2
-4. bugs_artefakts - папка с скриншотами на которых запечатлены баги
-5. issues.yml - ссылки на открытые баг-репорты
-6. reopened_issues.yml - ссылки на issues с неисправленными багами
+1. test_plan.md - Описывает весь объем работ по тестированию
+2. checklists/ - чеклисты
+3. test-cases/ - тест кейсы
+4. bug-reports/ - баг репорты
+5. screenshots/ - скриншоты багов
+6. test-report.md - отчет о тестировании
