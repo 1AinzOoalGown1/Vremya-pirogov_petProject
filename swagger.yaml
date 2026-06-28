@@ -1,0 +1,684 @@
+openapi: 3.0.0
+info:
+  title: API для сайта «Время пирогов»
+  description: Документация REST API для pet-проекта по тестированию интернет-магазина.
+  version: 1.0.0
+  contact:
+    email: vremya.pirogov@gmail.com
+
+servers:
+  - url: https://vremya-pirogov.ru/api/v1
+    description: Основной сервер (разработка)
+
+tags:
+  - name: Auth
+    description: Аутентификация и управление пользователями
+  - name: Cart
+    description: Работа с корзиной
+  - name: Catalog
+    description: Управление каталогом товаров (админский функционал)
+  - name: Actions
+    description: Акции и специальные предложения
+  - name: Contacts
+    description: Контактная информация
+  - name: Reviews
+    description: Отзывы пользователей
+  - name: Profile
+    description: Личный кабинет пользователя
+  - name: Orders
+    description: История и управление заказами
+
+paths:
+  # ======================= AUTH =======================
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Регистрация нового пользователя
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - email
+              properties:
+                username:
+                  type: string
+                  example: "ivan_petrov"
+                password:
+                  type: string
+                  format: password
+                  example: "Qwerty123!"
+                email:
+                  type: string
+                  format: email
+                  example: "ivan@example.com"
+      responses:
+        '201':
+          description: Пользователь успешно зарегистрирован
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 42
+                  username:
+                    type: string
+                    example: "ivan_petrov"
+                  email:
+                    type: string
+                    example: "ivan@example.com"
+        '400':
+          description: Невалидные данные (например, пользователь уже существует)
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Авторизация пользователя (получение JWT токена)
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "ivan_petrov"
+                password:
+                  type: string
+                  format: password
+                  example: "Qwerty123!"
+      responses:
+        '200':
+          description: Успешная авторизация
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  token_type:
+                    type: string
+                    example: "Bearer"
+        '401':
+          description: Неверный логин или пароль
+
+  # ======================= CART =======================
+  /cart:
+    get:
+      tags:
+        - Cart
+      summary: Получить содержимое корзины
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список товаров в корзине
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartItem'
+        '401':
+          description: Пользователь не авторизован
+  /cart/add:
+    post:
+      tags:
+        - Cart
+      summary: Добавить товар в корзину
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productId
+                - quantity
+              properties:
+                productId:
+                  type: integer
+                  example: 101
+                quantity:
+                  type: integer
+                  example: 2
+      responses:
+        '201':
+          description: Товар добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItem'
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Товар не найден
+  /cart/remove/{cartItemId}:
+    delete:
+      tags:
+        - Cart
+      summary: Удалить конкретный товар из корзины (по ID записи в корзине)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: cartItemId
+          required: true
+          schema:
+            type: integer
+          description: ID записи товара в корзине
+      responses:
+        '204':
+          description: Товар успешно удален (тело ответа пустое)
+        '401':
+          description: Пользователь не авторизован
+        '403':
+          description: Попытка удалить чужой товар
+        '404':
+          description: Товар в корзине не найден
+
+  # ======================= CATALOG (ADMIN) =======================
+  /catalog:
+    get:
+      tags:
+        - Catalog
+      summary: Получить список всех товаров (доступно всем)
+      operationId: getCatalog
+      responses:
+        '200':
+          description: Список товаров
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    post:
+      tags:
+        - Catalog
+      summary: Добавить новый товар (только для администратора)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - price
+                - calories
+                - proteins
+                - fats
+                - carbohydrates
+              properties:
+                name:
+                  type: string
+                  example: "Пирог с яблоками"
+                price:
+                  type: number
+                  format: float
+                  example: 450.00
+                calories:
+                  type: integer
+                  example: 320
+                proteins:
+                  type: number
+                  format: float
+                  example: 6.5
+                fats:
+                  type: number
+                  format: float
+                  example: 15.2
+                carbohydrates:
+                  type: number
+                  format: float
+                  example: 42.1
+      responses:
+        '201':
+          description: Товар создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          description: Пользователь не авторизован
+        '403':
+          description: Недостаточно прав (не админ)
+  /catalog/{productId}:
+    put:
+      tags:
+        - Catalog
+      summary: Полностью обновить информацию о товаре (только админ)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '200':
+          description: Товар обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          description: Пользователь не авторизован
+        '403':
+          description: Недостаточно прав
+        '404':
+          description: Товар не найден
+    delete:
+      tags:
+        - Catalog
+      summary: Удалить товар (только админ)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Товар удален
+        '401':
+          description: Пользователь не авторизован
+        '403':
+          description: Недостаточно прав
+
+  # ======================= ACTIONS =======================
+  /actions:
+    get:
+      tags:
+        - Actions
+      summary: Получить список текущих акций
+      responses:
+        '200':
+          description: Список акций (массив объектов с картинкой и текстом)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    img:
+                      type: string
+                      example: "/images/actions/action1.jpg"
+                    text:
+                      type: string
+                      example: "При заказе от 1500₽ доставка бесплатно!"
+              example:
+                - img: "/images/actions/birthday.jpg"
+                  text: "Скидка 15% на все пироги в день рождения!"
+                - img: "/images/actions/combo.jpg"
+                  text: "Комбо-набор: 3 мини-пирога по цене 2-х"
+                - img: "/images/actions/evening.jpg"
+                  text: "Вечерняя акция: с 18:00 до 20:00 — пирог в подарок"
+                - img: "/images/actions/new.jpg"
+                  text: "Новинка: пирог «Медовый» — попробуйте первыми!"
+
+  # ======================= CONTACTS =======================
+  /info/12889:
+    get:
+      tags:
+        - Contacts
+      summary: Получить контактную информацию
+      responses:
+        '200':
+          description: Контактные данные
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text:
+                    type: string
+                    example: "Контакты\n\nКазань, улица Академика Глушко, 45А\n\nЗаказы принимаются:\nежедневно с 9:00 до 19:30\n\nДоставка работает:\nежедневно с 10:00 до 21:00\n\n+7 (843) 205-24-44\n\nvremya.pirogov@gmail.com"
+
+  # ======================= REVIEWS =======================
+  /reviews:
+    get:
+      tags:
+        - Reviews
+      summary: Получить список всех отзывов (доступно всем)
+      responses:
+        '200':
+          description: Список отзывов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Review'
+    post:
+      tags:
+        - Reviews
+      summary: Оставить новый отзыв (требуется авторизация)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rating
+                - comment
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                comment:
+                  type: string
+                  example: "Очень вкусные пироги! Быстрая доставка."
+      responses:
+        '201':
+          description: Отзыв создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '401':
+          description: Пользователь не авторизован
+  /reviews/{reviewId}:
+    put:
+      tags:
+        - Reviews
+      summary: Обновить отзыв (только автор или админ)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: reviewId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: Отзыв обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '401':
+          description: Пользователь не авторизован
+        '403':
+          description: Недостаточно прав (не автор и не админ)
+        '404':
+          description: Отзыв не найден
+    delete:
+      tags:
+        - Reviews
+      summary: Удалить отзыв (только для администратора)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: reviewId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Отзыв удален
+        '401':
+          description: Пользователь не авторизован
+        '403':
+          description: Недостаточно прав (только админ)
+        '404':
+          description: Отзыв не найден
+
+  # ======================= PROFILE =======================
+  /profile:
+    get:
+      tags:
+        - Profile
+      summary: Получить профиль текущего пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Данные профиля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Пользователь не авторизован
+    put:
+      tags:
+        - Profile
+      summary: Обновить имя и email пользователя
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Иван Петров"
+                email:
+                  type: string
+                  format: email
+                  example: "new_email@example.com"
+      responses:
+        '200':
+          description: Данные обновлены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Ошибка валидации (некорректный email)
+        '401':
+          description: Пользователь не авторизован
+    delete:
+      tags:
+        - Profile
+      summary: Удалить аккаунт пользователя (безвозвратно)
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Аккаунт удален
+        '401':
+          description: Пользователь не авторизован
+
+  # ======================= ORDERS =======================
+  /orders:
+    get:
+      tags:
+        - Orders
+      summary: Получить историю заказов текущего пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список заказов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          description: Пользователь не авторизован
+
+# ======================= SCHEMAS =======================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        name:
+          type: string
+          example: "Пирог с яблоками"
+        price:
+          type: number
+          format: float
+          example: 450.00
+        calories:
+          type: integer
+          example: 320
+        proteins:
+          type: number
+          format: float
+          example: 6.5
+        fats:
+          type: number
+          format: float
+          example: 15.2
+        carbohydrates:
+          type: number
+          format: float
+          example: 42.1
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        productId:
+          type: integer
+          example: 101
+        name:
+          type: string
+          example: "Пирог с яблоками"
+        quantity:
+          type: integer
+          example: 2
+        price:
+          type: number
+          format: float
+          example: 450.00
+        total:
+          type: number
+          format: float
+          example: 900.00
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5
+        userId:
+          type: integer
+          example: 42
+        username:
+          type: string
+          example: "ivan_petrov"
+        rating:
+          type: integer
+          example: 5
+        comment:
+          type: string
+          example: "Очень вкусные пироги! Рекомендую!"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-06-28T14:30:00Z"
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        name:
+          type: string
+          example: "Иван Петров"
+        phone:
+          type: string
+          example: "+7 (843) 205-24-44"
+        email:
+          type: string
+          format: email
+          example: "ivan@example.com"
+        birthDate:
+          type: string
+          format: date
+          example: "1990-05-15"
+        bonusPoints:
+          type: integer
+          example: 150
+        ordersCount:
+          type: integer
+          example: 12
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1001
+        orderDate:
+          type: string
+          format: date-time
+          example: "2026-06-27T10:30:00Z"
+        totalAmount:
+          type: number
+          format: float
+          example: 1350.00
+        status:
+          type: string
+          enum:
+            - "delivered"
+            - "canceled"
+            - "in_progress"
+          example: "delivered"
